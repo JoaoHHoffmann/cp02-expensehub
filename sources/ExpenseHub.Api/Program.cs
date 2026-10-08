@@ -1,10 +1,12 @@
 using System;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Endpoints;
 using ExpenseHub.Api.Security;
+using ExpenseHub.Api.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -25,8 +27,11 @@ internal static class Program
         builder.Services.AddProblemDetails();
         builder.Services.AddExceptionHandler<ApiExceptionHandler>();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         builder.Services.AddDbContext<ExpenseHubDbContext>(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("ExpenseHub")));
+        builder.Services.AddScoped<ExpenseService>();
 
         builder.Services.AddAuthorization();
         builder.Services
@@ -59,6 +64,7 @@ internal static class Program
 
         app.MapIdentityApi<IdentityUser>();
         app.MapAdminEndpoints();
+        app.MapExpenseEndpoints();
         app.MapGet("/api/me", GetCurrentUser).RequireAuthorization();
 
         await app.RunAsync();
