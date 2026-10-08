@@ -116,3 +116,24 @@ dotnet run --project ./sources/ExpenseHub.Api/ExpenseHub.Api.csproj
 ```
 
 A API sobe em `http://localhost:5245`. Teste com `GET /health`.
+
+
+### Conta Admin inicial
+
+Na inicialização, o seed cria as roles `Admin`, `Employee`, `Approver`, `Finance` e
+`Auditor` e uma única conta Admin. O e-mail fica em `appsettings.json`
+(`Seed:AdminEmail`). A senha **não é versionada** e precisa ser configurada antes
+de iniciar a aplicação:
+
+```shell
+dotnet user-secrets set "Seed:AdminPassword" "<senha>" --project sources/ExpenseHub.Api/ExpenseHub.Api.csproj
+```
+
+Também é possível usar a variável de ambiente `Seed__AdminPassword`. A senha precisa
+ter ao menos 6 caracteres, com maiúscula, minúscula, número e símbolo.
+
+### Autenticação
+
+- `POST /register` com `{ "email": "...", "password": "..." }` cria um usuário sem role.
+- `POST /login` com o mesmo corpo devolve um `accessToken`.
+- Nas rotas protegidas, envie o header `Authorization: Bearer <accessToken>`.

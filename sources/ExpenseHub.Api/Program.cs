@@ -35,6 +35,7 @@ internal static class Program
         {
             ExpenseHubDbContext db = scope.ServiceProvider.GetRequiredService<ExpenseHubDbContext>();
             await db.Database.MigrateAsync();
+            await IdentitySeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
         }
 
         app.UseExceptionHandler();
