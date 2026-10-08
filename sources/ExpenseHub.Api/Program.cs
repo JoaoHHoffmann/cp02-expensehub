@@ -1,8 +1,10 @@
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using ExpenseHub.Api.Endpoints;
 using ExpenseHub.Api.Data;
+using ExpenseHub.Api.Endpoints;
+using ExpenseHub.Api.Security;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -30,6 +32,7 @@ internal static class Program
             .AddIdentityApiEndpoints<IdentityUser>(options => options.User.RequireUniqueEmail = true)
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ExpenseHubDbContext>();
+        builder.Services.AddScoped<IClaimsTransformation, SecurityStampClaimsTransformation>();
 
         WebApplication app = builder.Build();
 
