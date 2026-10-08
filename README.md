@@ -146,3 +146,14 @@ ter ao menos 6 caracteres, com maiúscula, minúscula, número e símbolo.
   role `Admin`.
 - Depois de uma alteração, os tokens antigos do usuário deixam de valer e ele precisa
   fazer login de novo.
+
+  ### Reembolsos
+
+Categorias disponíveis (`categoryId`): 1 Alimentação, 2 Transporte, 3 Hospedagem e 4 Outros.
+
+- `POST /api/expenses` (role `Employee`) cria um rascunho:
+  `{ "categoryId": 1, "description": "Almoço com cliente", "amount": 50.00, "expenseDate": "2026-10-01" }`
+- `PUT /api/expenses/{id}` (somente o proprietário, e somente em `Draft`) edita o rascunho com o mesmo corpo.
+
+O proprietário, o estado e os horários são definidos pelo servidor. Campos extras enviados
+pelo cliente, como `status` ou `ownerId`, são ignorados.
