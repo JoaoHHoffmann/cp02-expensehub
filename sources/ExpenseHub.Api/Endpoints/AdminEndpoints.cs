@@ -22,7 +22,8 @@ internal static class AdminEndpoints
             .RequireAuthorization(policy => policy.RequireRole(Roles.Admin));
 
         group.MapGet(string.Empty, ListUsersAsync);
-        group.MapPut("/{id}/roles", UpdateRolesAsync);
+        group.MapPut("/{id}/roles", UpdateRolesAsync)
+            .AddEndpointFilter<ValidationFilter<UpdateUserRolesRequest>>();
     }
 
     private static async Task<IResult> ListUsersAsync(

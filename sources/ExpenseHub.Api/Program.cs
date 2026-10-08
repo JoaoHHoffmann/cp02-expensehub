@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Endpoints;
 using ExpenseHub.Api.Security;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -23,7 +22,6 @@ internal static class Program
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
         builder.Services.AddProblemDetails();
-        builder.Services.AddValidation();
         builder.Services.AddDbContext<ExpenseHubDbContext>(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("ExpenseHub")));
 
@@ -32,7 +30,6 @@ internal static class Program
             .AddIdentityApiEndpoints<IdentityUser>(options => options.User.RequireUniqueEmail = true)
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ExpenseHubDbContext>();
-        builder.Services.AddScoped<IClaimsTransformation, SecurityStampClaimsTransformation>();
 
         WebApplication app = builder.Build();
 
@@ -46,6 +43,7 @@ internal static class Program
         app.UseExceptionHandler();
         app.UseStatusCodePages();
         app.UseAuthentication();
+        app.UseMiddleware<SecurityStampMiddleware>();
         app.UseAuthorization();
 
         if (app.Environment.IsDevelopment())
