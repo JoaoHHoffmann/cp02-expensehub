@@ -1,7 +1,11 @@
+using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,8 +19,15 @@ internal static class Program
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
+        builder.Services.AddProblemDetails();
         builder.Services.AddDbContext<ExpenseHubDbContext>(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("ExpenseHub")));
+
+        builder.Services.AddAuthorization();
+        builder.Services
+            .AddIdentityApiEndpoints<IdentityUser>(options => options.User.RequireUniqueEmail = true)
+            .AddRoles<IdentityRole>()
+            .AddEntityFrameworkStores<ExpenseHubDbContext>();
 
         WebApplication app = builder.Build();
 
@@ -26,6 +37,11 @@ internal static class Program
             await db.Database.MigrateAsync();
         }
 
+        app.UseExceptionHandler();
+        app.UseStatusCodePages();
+        app.UseAuthentication();
+        app.UseAuthorization();
+
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
@@ -34,6 +50,19 @@ internal static class Program
         app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
             .WithName("GetHealth");
 
+        app.MapIdentityApi<IdentityUser>();
+        app.MapGet("/api/me", GetCurrentUser).RequireAuthorization();
+
         await app.RunAsync();
+    }
+
+    private static IResult GetCurrentUser(ClaimsPrincipal user)
+    {
+        return Results.Ok(new
+        {
+            id = user.FindFirstValue(ClaimTypes.NameIdentifier),
+            email = user.Identity?.Name,
+            roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value),
+        });
     }
 }
