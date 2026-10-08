@@ -2,6 +2,8 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
+using ExpenseHub.Api.Endpoints;
+using ExpenseHub.Api.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -41,6 +43,7 @@ internal static class Program
         app.UseExceptionHandler();
         app.UseStatusCodePages();
         app.UseAuthentication();
+        app.UseMiddleware<SecurityStampMiddleware>();
         app.UseAuthorization();
 
         if (app.Environment.IsDevelopment())
@@ -52,6 +55,7 @@ internal static class Program
             .WithName("GetHealth");
 
         app.MapIdentityApi<IdentityUser>();
+        app.MapAdminEndpoints();
         app.MapGet("/api/me", GetCurrentUser).RequireAuthorization();
 
         await app.RunAsync();
