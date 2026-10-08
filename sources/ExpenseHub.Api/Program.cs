@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using ExpenseHub.Api.Endpoints;
 using ExpenseHub.Api.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -20,6 +21,7 @@ internal static class Program
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
         builder.Services.AddProblemDetails();
+        builder.Services.AddValidation();
         builder.Services.AddDbContext<ExpenseHubDbContext>(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("ExpenseHub")));
 
@@ -52,6 +54,7 @@ internal static class Program
             .WithName("GetHealth");
 
         app.MapIdentityApi<IdentityUser>();
+        app.MapAdminEndpoints();
         app.MapGet("/api/me", GetCurrentUser).RequireAuthorization();
 
         await app.RunAsync();
