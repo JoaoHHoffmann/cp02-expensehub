@@ -137,3 +137,12 @@ ter ao menos 6 caracteres, com maiúscula, minúscula, número e símbolo.
 - `POST /register` com `{ "email": "...", "password": "..." }` cria um usuário sem role.
 - `POST /login` com o mesmo corpo devolve um `accessToken`.
 - Nas rotas protegidas, envie o header `Authorization: Bearer <accessToken>`.
+
+### Administração de usuários (somente Admin)
+
+- `GET /api/admin/users` lista os usuários e suas roles.
+- `PUT /api/admin/users/{id}/roles` com `{ "roles": ["Employee", "Approver"] }` define
+  as roles do usuário. Só aceita roles conhecidas e impede que o Admin remova a própria
+  role `Admin`.
+- Depois de uma alteração, os tokens antigos do usuário deixam de valer e ele precisa
+  fazer login de novo.
