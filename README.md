@@ -91,3 +91,28 @@ Entregue:
 - documentação atualizada.
 
 O projeto deve compilar sem erros e ser entregue sem warnings para receber a pontuação integral de Qualidade de Código.
+
+
+## Configuração do grupo
+
+### Banco de dados
+
+- **Provider:** SQLite, pacote `Microsoft.EntityFrameworkCore.Sqlite`.
+- **Configuração:** a connection string `ConnectionStrings:ExpenseHub` fica em
+  `sources/ExpenseHub.Api/appsettings.json` (`Data Source=expensehub.db`). O arquivo
+  do banco é criado na pasta onde a aplicação é executada e não é versionado.
+- **Criação e atualização:** as migrations são aplicadas automaticamente quando a
+  aplicação inicia. Para aplicar manualmente:
+
+```shell
+dotnet tool install --global dotnet-ef
+dotnet ef database update --project sources/ExpenseHub.Api/ExpenseHub.Api.csproj
+```
+
+### Como executar
+
+```shell
+dotnet run --project ./sources/ExpenseHub.Api/ExpenseHub.Api.csproj
+```
+
+A API sobe em `http://localhost:5245`. Teste com `GET /health`.
