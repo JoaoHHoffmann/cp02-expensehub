@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -22,6 +23,8 @@ internal static class Program
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
         builder.Services.AddProblemDetails();
+        builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddDbContext<ExpenseHubDbContext>(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("ExpenseHub")));
 
