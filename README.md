@@ -189,7 +189,7 @@ Essa configuração não altera o esquema do SQLite e não exige nova migration.
 |---|---|---|
 | Employee | Somente próprios, em qualquer estado | Criar; editar/enviar Draft próprio |
 | Approver | Submitted | Aprovar/reprovar Submitted alheio |
-| Finance | Approved e Paid | Regra de pagamento de Approved alheio preparada para I08 |
+| Finance | Approved e Paid | Pagar Approved alheio |
 | Auditor | Todos | Nenhuma |
 | Admin | Nenhuma | Somente administração de usuários/roles |
 
@@ -203,7 +203,7 @@ ownership e estado. Edição/envio consultam somente registros próprios, retorn
 `404` para IDs alheios mesmo quando outra role concede leitura. As decisões e o
 pagamento exigem role funcional e ator diferente do proprietário (`403`), além
 do estado esperado (`409`). `ExpenseAccess.EnsureCanPay` reúne essas regras para
-a futura I08; o endpoint de pagamento ainda não está implementado.
+o endpoint de pagamento.
 
 ### Aprovar e reprovar
 
@@ -233,6 +233,30 @@ Employee proprietário e Auditor continuam a consultar conforme a matriz. Financ
 passa a consultar os aprovados. O histórico de cada decisão guarda ator, UTC,
 estados anterior/posterior e, na reprovação, justificativa. Alteração e histórico
 são gravados juntos, inclusive com proteção contra decisões simultâneas.
+
+### Pagamento e histórico
+
+- `POST /api/expenses/{id}/pay`: Finance não proprietário transforma `Approved`
+  em `Paid`. Não recebe corpo. Grava um `PaymentRecord` com o ator, o valor do
+  reembolso e o horário do servidor (`TimeProvider`, sempre em UTC), além do
+  histórico da transição. Pagamento e histórico são gravados no mesmo
+  `SaveChangesAsync`.
+- `GET /api/expenses/{id}/history` retorna a lista de eventos (`Created`,
+  `Updated`, `Submitted`, `Approved`, `Rejected`, `Paid`) com ator, estados
+  anterior/posterior, horário UTC e, quando aplicável, justificativa ou
+  alterações de rascunho. A visibilidade é a mesma do detalhe do reembolso:
+  recurso fora do escopo de leitura retorna `404`.
+- `GET /api/expenses/{id}` e `GET /api/expenses` incluem o campo `payment`
+  (ator, horário e valor) quando o reembolso já foi pago; `null` nos demais
+  estados.
+- Sem Finance retorna `403`; pagar a própria despesa retorna `403`, mesmo com
+  outras roles; ID inexistente retorna `404`; pagar novamente ou fora de
+  `Approved` retorna `409`, sem duplicar o registro de pagamento.
+
+```shell
+curl -X POST http://localhost:5245/api/expenses/<id>/pay -H "Authorization: Bearer <token-finance>"
+curl http://localhost:5245/api/expenses/<id>/history -H "Authorization: Bearer <token>"
+```
 
 Os testes MSTest exercitam as regras em memória, sem banco, rede ou serviços externos:
 
