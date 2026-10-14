@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts;
@@ -56,6 +59,37 @@ internal sealed class ExpenseService
 
         // Alteração e histórico são gravados juntos, no mesmo SaveChanges.
         await _db.SaveChangesAsync(cancellationToken);
+        return ExpenseResponse.FromEntity(expense);
+    }
+
+    public async Task<ExpenseResponse> SubmitAsync(Guid id, string userId, CancellationToken cancellationToken)
+    {
+        Expense expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.OwnerId == userId, cancellationToken)
+            ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
+
+        expense.Submit(userId, _clock.GetUtcNow().UtcDateTime);
+        await _db.SaveChangesAsync(cancellationToken);
+        return ExpenseResponse.FromEntity(expense);
+    }
+
+    public async Task<List<ExpenseResponse>> ListAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        List<Expense> expenses = await _db.Expenses.AsNoTracking()
+            .Where(ExpenseAccess.ReadFilter(user))
+            .OrderByDescending(e => e.CreatedAtUtc)
+            .ThenBy(e => e.Id)
+            .ToListAsync(cancellationToken);
+
+        return expenses.Select(ExpenseResponse.FromEntity).ToList();
+    }
+
+    public async Task<ExpenseResponse> GetAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        Expense expense = await _db.Expenses.AsNoTracking()
+            .Where(ExpenseAccess.ReadFilter(user))
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
+            ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
+
         return ExpenseResponse.FromEntity(expense);
     }
 

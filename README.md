@@ -147,7 +147,7 @@ ter ao menos 6 caracteres, com maiúscula, minúscula, número e símbolo.
 - Depois de uma alteração, os tokens antigos do usuário deixam de valer e ele precisa
   fazer login de novo.
 
-  ### Reembolsos
+### Reembolsos
 
 Categorias disponíveis (`categoryId`): 1 Alimentação, 2 Transporte, 3 Hospedagem e 4 Outros.
 
@@ -157,3 +157,36 @@ Categorias disponíveis (`categoryId`): 1 Alimentação, 2 Transporte, 3 Hospeda
 
 O proprietário, o estado e os horários são definidos pelo servidor. Campos extras enviados
 pelo cliente, como `status` ou `ownerId`, são ignorados.
+
+- `POST /api/expenses/{id}/submit` (Employee proprietário, somente em `Draft`)
+  envia o reembolso para `Submitted`. Não recebe corpo; retorna o reembolso atualizado.
+- `GET /api/expenses` lista somente os reembolsos visíveis: Employee vê os próprios;
+  Approver vê `Submitted`; Finance vê `Approved`/`Paid`; Auditor vê todos.
+- `GET /api/expenses/{id}` retorna o detalhe com a mesma visibilidade da listagem.
+  As permissões de leitura se acumulam quando o usuário possui múltiplas roles.
+  Admin sozinho não concede acesso a reembolsos.
+
+Exemplos (substitua os placeholders pelos tokens e pelo ID real):
+
+```shell
+curl -X POST http://localhost:5245/api/expenses/<id>/submit -H "Authorization: Bearer <token-employee>"
+curl http://localhost:5245/api/expenses -H "Authorization: Bearer <token>"
+curl http://localhost:5245/api/expenses/<id> -H "Authorization: Bearer <token>"
+```
+
+Credenciais ausentes ou inválidas retornam `401`; role sem permissão retorna `403`;
+ID inexistente ou fora do escopo retorna `404`; envio repetido ou fora de `Draft`
+retorna `409`. Os erros seguem o contrato de `ProblemDetails`.
+
+Envio e histórico são persistidos no mesmo `SaveChangesAsync`. O estado é um token
+de concorrência do EF Core: se duas requisições tentarem transitar o mesmo estado,
+a operação perdedora retorna `409` e seu histórico é revertido pela transação.
+Essa configuração não altera o esquema do SQLite e não exige nova migration.
+
+Os testes MSTest exercitam as regras em memória, sem banco, rede ou serviços externos:
+
+```shell
+dotnet restore sources/ExpenseHub.slnx
+dotnet build sources/ExpenseHub.slnx
+dotnet test sources/ExpenseHub.slnx
+```

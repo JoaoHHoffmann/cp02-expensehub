@@ -5,6 +5,7 @@ using ExpenseHub.Api.Domain;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseHub.Api.Endpoints;
 
@@ -25,6 +26,7 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             DomainException { Type: DomainErrorType.Forbidden } => StatusCodes.Status403Forbidden,
             DomainException { Type: DomainErrorType.NotFound } => StatusCodes.Status404NotFound,
             DomainException { Type: DomainErrorType.Conflict } => StatusCodes.Status409Conflict,
+            DbUpdateConcurrencyException => StatusCodes.Status409Conflict,
             BadHttpRequestException badRequest => badRequest.StatusCode,
             _ => null,
         };
@@ -39,7 +41,13 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
         {
             HttpContext = httpContext,
             Exception = exception,
-            ProblemDetails = new ProblemDetails { Status = status.Value, Title = exception.Message },
+            ProblemDetails = new ProblemDetails
+            {
+                Status = status.Value,
+                Title = exception is DbUpdateConcurrencyException
+                    ? "O reembolso foi alterado por outra requisição. Consulte seu estado atual."
+                    : exception.Message,
+            },
         });
     }
 }
