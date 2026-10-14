@@ -121,6 +121,23 @@ internal sealed class Expense
         AddHistory(ExpenseAction.Rejected, actorId, nowUtc, ExpenseStatus.Submitted, ExpenseStatus.Rejected, justification: reason);
     }
 
+    public void Pay(string actorId, DateTime nowUtc)
+    {
+        EnsureNotOwner(actorId);
+        EnsureStatus(ExpenseStatus.Approved, "Somente reembolsos aprovados podem ser pagos.");
+
+        Status = ExpenseStatus.Paid;
+        Payment = new PaymentRecord
+        {
+            Id = Guid.NewGuid(),
+            ExpenseId = Id,
+            PaidById = actorId,
+            PaidAtUtc = nowUtc,
+            Amount = Amount,
+        };
+        AddHistory(ExpenseAction.Paid, actorId, nowUtc, ExpenseStatus.Approved, ExpenseStatus.Paid);
+    }
+
     private static void ValidateDetails(string description, decimal amount, DateOnly expenseDate, DateTime nowUtc)
     {
         int length = description.Trim().Length;
