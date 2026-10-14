@@ -8,6 +8,18 @@ namespace ExpenseHub.Api.Services;
 
 internal static class ExpenseAccess
 {
+    public static void EnsureEmployee(ClaimsPrincipal user)
+    {
+        EnsureRole(user, Roles.Employee);
+    }
+
+    public static Expression<Func<Expense, bool>> OwnerFilter(ClaimsPrincipal user)
+    {
+        EnsureEmployee(user);
+        string userId = user.GetUserId();
+        return expense => expense.OwnerId == userId;
+    }
+
     public static Expression<Func<Expense, bool>> ReadFilter(ClaimsPrincipal user)
     {
         bool employee = user.IsInRole(Roles.Employee);
@@ -24,5 +36,49 @@ internal static class ExpenseAccess
             || (employee && expense.OwnerId == userId)
             || (approver && expense.Status == ExpenseStatus.Submitted)
             || (finance && (expense.Status == ExpenseStatus.Approved || expense.Status == ExpenseStatus.Paid));
+    }
+
+    public static void EnsureCanDecide(ClaimsPrincipal user, Expense expense)
+    {
+        EnsureRole(user, Roles.Approver);
+        EnsureNotOwner(user, expense);
+        EnsureStatus(expense, ExpenseStatus.Submitted);
+    }
+
+    // Regra preparada para I08; não realiza pagamento nem altera o reembolso.
+    public static void EnsureCanPay(ClaimsPrincipal user, Expense expense)
+    {
+        EnsureRole(user, Roles.Finance);
+        EnsureNotOwner(user, expense);
+        EnsureStatus(expense, ExpenseStatus.Approved);
+    }
+
+    public static void EnsureApprover(ClaimsPrincipal user)
+    {
+        EnsureRole(user, Roles.Approver);
+    }
+
+    private static void EnsureRole(ClaimsPrincipal user, string role)
+    {
+        if (!user.IsInRole(role))
+        {
+            throw new DomainException(DomainErrorType.Forbidden, "Sem permissão para esta operação.");
+        }
+    }
+
+    private static void EnsureNotOwner(ClaimsPrincipal user, Expense expense)
+    {
+        if (expense.OwnerId == user.GetUserId())
+        {
+            throw new DomainException(DomainErrorType.Forbidden, "Não é permitido decidir ou pagar o próprio reembolso.");
+        }
+    }
+
+    private static void EnsureStatus(Expense expense, ExpenseStatus expected)
+    {
+        if (expense.Status != expected)
+        {
+            throw new DomainException(DomainErrorType.Conflict, "O estado atual não permite esta operação.");
+        }
     }
 }

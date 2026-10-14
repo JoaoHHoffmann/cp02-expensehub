@@ -183,6 +183,28 @@ de concorrência do EF Core: se duas requisições tentarem transitar o mesmo es
 a operação perdedora retorna `409` e seu histórico é revertido pela transação.
 Essa configuração não altera o esquema do SQLite e não exige nova migration.
 
+### Ownership e autorização
+
+| Role | Leitura de reembolsos | Escrita concedida pela role |
+|---|---|---|
+| Employee | Somente próprios, em qualquer estado | Criar; editar/enviar Draft próprio |
+| Approver | Submitted | Decisão sobre Submitted alheio (I07) |
+| Finance | Approved e Paid | Regra de pagamento de Approved alheio preparada para I08 |
+| Auditor | Todos | Nenhuma |
+| Admin | Nenhuma | Somente administração de usuários/roles |
+
+Roles se acumulam: Employee + Approver consulta os próprios e os Submitted alheios;
+Admin + Employee recebe as permissões de Employee. Auditor sozinho não escreve;
+Auditor + Employee pode editar/enviar seus próprios Drafts. Nenhuma combinação
+autoriza aprovar, reprovar ou pagar o próprio reembolso.
+
+As rotas exigem autenticação e role; o serviço também verifica a role e aplica
+ownership e estado. Edição/envio consultam somente registros próprios, retornando
+`404` para IDs alheios mesmo quando outra role concede leitura. As decisões e o
+pagamento exigem role funcional e ator diferente do proprietário (`403`), além
+do estado esperado (`409`). `ExpenseAccess.EnsureCanPay` reúne essas regras para
+a futura I08; o endpoint de pagamento ainda não está implementado.
+
 Os testes MSTest exercitam as regras em memória, sem banco, rede ou serviços externos:
 
 ```shell
