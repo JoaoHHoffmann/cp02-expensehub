@@ -47,7 +47,7 @@ internal sealed class ExpenseHubDbContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.OwnerId).HasMaxLength(450).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsConcurrencyToken();
             entity.HasIndex(e => e.OwnerId);
             entity.HasIndex(e => e.Status);
             entity.HasOne(e => e.Category).WithMany().HasForeignKey(e => e.CategoryId).OnDelete(DeleteBehavior.Restrict);

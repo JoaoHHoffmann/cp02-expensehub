@@ -88,6 +88,15 @@ internal sealed class Expense
         AddHistory(ExpenseAction.Updated, actorId, nowUtc, ExpenseStatus.Draft, ExpenseStatus.Draft, changes: string.Join("; ", changes));
     }
 
+    public void Submit(string actorId, DateTime nowUtc)
+    {
+        EnsureOwner(actorId);
+        EnsureStatus(ExpenseStatus.Draft, "Somente rascunhos podem ser enviados.");
+
+        Status = ExpenseStatus.Submitted;
+        AddHistory(ExpenseAction.Submitted, actorId, nowUtc, ExpenseStatus.Draft, ExpenseStatus.Submitted);
+    }
+
     private static void ValidateDetails(string description, decimal amount, DateOnly expenseDate, DateTime nowUtc)
     {
         int length = description.Trim().Length;
