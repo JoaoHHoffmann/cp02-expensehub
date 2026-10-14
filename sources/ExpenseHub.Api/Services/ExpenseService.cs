@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Domain;
+using ExpenseHub.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseHub.Api.Services;
@@ -22,13 +23,14 @@ internal sealed class ExpenseService
         _clock = clock;
     }
 
-    public async Task<ExpenseResponse> CreateAsync(string userId, ExpenseRequest request, CancellationToken cancellationToken)
+    public async Task<ExpenseResponse> CreateAsync(ClaimsPrincipal user, ExpenseRequest request, CancellationToken cancellationToken)
     {
+        ExpenseAccess.EnsureEmployee(user);
         int categoryId = request.CategoryId.GetValueOrDefault();
         await EnsureCategoryExistsAsync(categoryId, cancellationToken);
 
         Expense expense = Expense.Create(
-            userId,
+            user.GetUserId(),
             categoryId,
             request.Description ?? string.Empty,
             request.Amount.GetValueOrDefault(),
@@ -40,17 +42,18 @@ internal sealed class ExpenseService
         return ExpenseResponse.FromEntity(expense);
     }
 
-    public async Task<ExpenseResponse> UpdateAsync(Guid id, string userId, ExpenseRequest request, CancellationToken cancellationToken)
+    public async Task<ExpenseResponse> UpdateAsync(Guid id, ClaimsPrincipal user, ExpenseRequest request, CancellationToken cancellationToken)
     {
         // Só o proprietário enxerga o próprio rascunho; para os demais, o recurso não existe (404).
-        Expense expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.OwnerId == userId, cancellationToken)
+        Expense expense = await _db.Expenses.Where(ExpenseAccess.OwnerFilter(user))
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
             ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
 
         int categoryId = request.CategoryId.GetValueOrDefault();
         await EnsureCategoryExistsAsync(categoryId, cancellationToken);
 
         expense.Update(
-            userId,
+            user.GetUserId(),
             categoryId,
             request.Description ?? string.Empty,
             request.Amount.GetValueOrDefault(),
@@ -62,12 +65,13 @@ internal sealed class ExpenseService
         return ExpenseResponse.FromEntity(expense);
     }
 
-    public async Task<ExpenseResponse> SubmitAsync(Guid id, string userId, CancellationToken cancellationToken)
+    public async Task<ExpenseResponse> SubmitAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        Expense expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.OwnerId == userId, cancellationToken)
+        Expense expense = await _db.Expenses.Where(ExpenseAccess.OwnerFilter(user))
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
             ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
 
-        expense.Submit(userId, _clock.GetUtcNow().UtcDateTime);
+        expense.Submit(user.GetUserId(), _clock.GetUtcNow().UtcDateTime);
         await _db.SaveChangesAsync(cancellationToken);
         return ExpenseResponse.FromEntity(expense);
     }

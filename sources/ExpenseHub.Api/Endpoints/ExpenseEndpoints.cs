@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts;
 using ExpenseHub.Api.Domain;
-using ExpenseHub.Api.Security;
 using ExpenseHub.Api.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -42,7 +41,7 @@ internal static class ExpenseEndpoints
         ExpenseService service,
         CancellationToken cancellationToken)
     {
-        ExpenseResponse response = await service.SubmitAsync(id, user.GetUserId(), cancellationToken);
+        ExpenseResponse response = await service.SubmitAsync(id, user, cancellationToken);
         return Results.Ok(response);
     }
 
@@ -69,7 +68,7 @@ internal static class ExpenseEndpoints
         ExpenseService service,
         CancellationToken cancellationToken)
     {
-        ExpenseResponse response = await service.CreateAsync(user.GetUserId(), request, cancellationToken);
+        ExpenseResponse response = await service.CreateAsync(user, request, cancellationToken);
         return Results.Created($"/api/expenses/{response.Id}", response);
     }
 
@@ -80,7 +79,7 @@ internal static class ExpenseEndpoints
         ExpenseService service,
         CancellationToken cancellationToken)
     {
-        ExpenseResponse response = await service.UpdateAsync(id, user.GetUserId(), request, cancellationToken);
+        ExpenseResponse response = await service.UpdateAsync(id, user, request, cancellationToken);
         return Results.Ok(response);
     }
 }
