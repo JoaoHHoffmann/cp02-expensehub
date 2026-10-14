@@ -11,7 +11,7 @@ namespace ExpenseHub.UnitTests;
 [TestClass]
 public sealed class ExpenseRequestValidationTests
 {
-    private static readonly DateOnly ValidExpenseDate = new(2026, 10, 1);
+    private static readonly DateOnly _validExpenseDate = new(2026, 10, 1);
 
     /// <summary>Um corpo completo e dentro dos limites passa na validação declarativa.</summary>
     [TestMethod]
@@ -158,7 +158,7 @@ public sealed class ExpenseRequestValidationTests
         Assert.AreEqual(1, request.CategoryId);
         Assert.AreEqual("Almoço com cliente importante", request.Description);
         Assert.AreEqual(50.00m, request.Amount);
-        Assert.AreEqual(ValidExpenseDate, request.ExpenseDate);
+        Assert.AreEqual(_validExpenseDate, request.ExpenseDate);
 
         System.Text.Json.JsonElement serialized = System.Text.Json.JsonSerializer.SerializeToElement(request, options);
         Assert.HasCount(4, serialized.EnumerateObject());
@@ -174,7 +174,7 @@ public sealed class ExpenseRequestValidationTests
             CategoryId = 1,
             Description = "Almoço com cliente importante",
             Amount = 50.00m,
-            ExpenseDate = ValidExpenseDate,
+            ExpenseDate = _validExpenseDate,
         };
     }
 }
