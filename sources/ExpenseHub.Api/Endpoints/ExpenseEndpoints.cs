@@ -35,10 +35,16 @@ internal static class ExpenseEndpoints
             .RequireAuthorization(policy => policy.RequireRole(Roles.Approver))
             .AddEndpointFilter<ValidationFilter<RejectExpenseRequest>>();
 
+        group.MapPost("/{id:guid}/pay", PayAsync)
+            .RequireAuthorization(policy => policy.RequireRole(Roles.Finance));
+
         group.MapGet(string.Empty, ListAsync)
             .RequireAuthorization(policy => policy.RequireRole(Roles.Employee, Roles.Approver, Roles.Finance, Roles.Auditor));
 
         group.MapGet("/{id:guid}", GetAsync)
+            .RequireAuthorization(policy => policy.RequireRole(Roles.Employee, Roles.Approver, Roles.Finance, Roles.Auditor));
+
+        group.MapGet("/{id:guid}/history", GetHistoryAsync)
             .RequireAuthorization(policy => policy.RequireRole(Roles.Employee, Roles.Approver, Roles.Finance, Roles.Auditor));
     }
 
@@ -71,6 +77,25 @@ internal static class ExpenseEndpoints
     {
         ExpenseResponse response = await service.SubmitAsync(id, user, cancellationToken);
         return Results.Ok(response);
+    }
+
+    private static async Task<IResult> PayAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        ExpenseService service,
+        CancellationToken cancellationToken)
+    {
+        ExpenseResponse response = await service.PayAsync(id, user, cancellationToken);
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> GetHistoryAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        ExpenseService service,
+        CancellationToken cancellationToken)
+    {
+        return Results.Ok(await service.GetHistoryAsync(id, user, cancellationToken));
     }
 
     private static async Task<IResult> ListAsync(

@@ -11,7 +11,8 @@ internal sealed record ExpenseResponse(
     decimal Amount,
     DateOnly ExpenseDate,
     ExpenseStatus Status,
-    DateTime CreatedAtUtc)
+    DateTime CreatedAtUtc,
+    PaymentResponse? Payment)
 {
     public static ExpenseResponse FromEntity(Expense expense)
     {
@@ -23,6 +24,15 @@ internal sealed record ExpenseResponse(
             expense.Amount,
             expense.ExpenseDate,
             expense.Status,
-            expense.CreatedAtUtc);
+            expense.CreatedAtUtc,
+            expense.Payment is null ? null : PaymentResponse.FromEntity(expense.Payment));
+    }
+}
+
+internal sealed record PaymentResponse(Guid Id, string PaidById, DateTime PaidAtUtc, decimal Amount)
+{
+    public static PaymentResponse FromEntity(PaymentRecord payment)
+    {
+        return new PaymentResponse(payment.Id, payment.PaidById, payment.PaidAtUtc, payment.Amount);
     }
 }

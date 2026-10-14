@@ -45,7 +45,6 @@ internal static class ExpenseAccess
         EnsureStatus(expense, ExpenseStatus.Submitted);
     }
 
-    // Regra preparada para I08; não realiza pagamento nem altera o reembolso.
     public static void EnsureCanPay(ClaimsPrincipal user, Expense expense)
     {
         EnsureRole(user, Roles.Finance);
@@ -56,6 +55,11 @@ internal static class ExpenseAccess
     public static void EnsureApprover(ClaimsPrincipal user)
     {
         EnsureRole(user, Roles.Approver);
+    }
+
+    public static void EnsureFinance(ClaimsPrincipal user)
+    {
+        EnsureRole(user, Roles.Finance);
     }
 
     private static void EnsureRole(ClaimsPrincipal user, string role)

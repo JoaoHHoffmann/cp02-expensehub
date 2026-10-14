@@ -94,9 +94,24 @@ internal sealed class ExpenseService
         return ExpenseResponse.FromEntity(expense);
     }
 
+    public async Task<ExpenseResponse> PayAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        Expense expense = await GetForPaymentAsync(id, user, cancellationToken);
+        expense.Pay(user.GetUserId(), _clock.GetUtcNow().UtcDateTime);
+
+        // O EF Core não detecta o novo PaymentRecord como inserção apenas pela navegação;
+        // é preciso adicioná-lo explicitamente ao contexto.
+        _db.PaymentRecords.Add(expense.Payment!);
+
+        // Pagamento e histórico são gravados juntos, no mesmo SaveChanges.
+        await _db.SaveChangesAsync(cancellationToken);
+        return ExpenseResponse.FromEntity(expense);
+    }
+
     public async Task<List<ExpenseResponse>> ListAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         List<Expense> expenses = await _db.Expenses.AsNoTracking()
+            .Include(e => e.Payment)
             .Where(ExpenseAccess.ReadFilter(user))
             .OrderByDescending(e => e.CreatedAtUtc)
             .ThenBy(e => e.Id)
@@ -108,11 +123,32 @@ internal sealed class ExpenseService
     public async Task<ExpenseResponse> GetAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         Expense expense = await _db.Expenses.AsNoTracking()
+            .Include(e => e.Payment)
             .Where(ExpenseAccess.ReadFilter(user))
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
             ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
 
         return ExpenseResponse.FromEntity(expense);
+    }
+
+    public async Task<List<ExpenseHistoryResponse>> GetHistoryAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        // A mesma visibilidade do detalhe decide o acesso ao histórico; fora do escopo retorna 404.
+        bool visible = await _db.Expenses.AsNoTracking()
+            .Where(ExpenseAccess.ReadFilter(user))
+            .AnyAsync(e => e.Id == id, cancellationToken);
+        if (!visible)
+        {
+            throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
+        }
+
+        List<ExpenseHistory> history = await _db.ExpenseHistories.AsNoTracking()
+            .Where(h => h.ExpenseId == id)
+            .OrderBy(h => h.OccurredAtUtc)
+            .ThenBy(h => h.Id)
+            .ToListAsync(cancellationToken);
+
+        return history.Select(ExpenseHistoryResponse.FromEntity).ToList();
     }
 
     private async Task<Expense> GetForDecisionAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -123,6 +159,17 @@ internal sealed class ExpenseService
             ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
 
         ExpenseAccess.EnsureCanDecide(user, expense);
+        return expense;
+    }
+
+    private async Task<Expense> GetForPaymentAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        ExpenseAccess.EnsureFinance(user);
+        // Uma repetição deve retornar 409, mesmo após sair do escopo de leitura Approved.
+        Expense expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
+            ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
+
+        ExpenseAccess.EnsureCanPay(user, expense);
         return expense;
     }
 
