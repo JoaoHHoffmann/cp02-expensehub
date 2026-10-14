@@ -188,7 +188,7 @@ Essa configuração não altera o esquema do SQLite e não exige nova migration.
 | Role | Leitura de reembolsos | Escrita concedida pela role |
 |---|---|---|
 | Employee | Somente próprios, em qualquer estado | Criar; editar/enviar Draft próprio |
-| Approver | Submitted | Decisão sobre Submitted alheio (I07) |
+| Approver | Submitted | Aprovar/reprovar Submitted alheio |
 | Finance | Approved e Paid | Regra de pagamento de Approved alheio preparada para I08 |
 | Auditor | Todos | Nenhuma |
 | Admin | Nenhuma | Somente administração de usuários/roles |
@@ -204,6 +204,35 @@ ownership e estado. Edição/envio consultam somente registros próprios, retorn
 pagamento exigem role funcional e ator diferente do proprietário (`403`), além
 do estado esperado (`409`). `ExpenseAccess.EnsureCanPay` reúne essas regras para
 a futura I08; o endpoint de pagamento ainda não está implementado.
+
+### Aprovar e reprovar
+
+- `POST /api/expenses/{id}/approve`: Approver não proprietário transforma
+  `Submitted` em `Approved`. Não recebe corpo.
+- `POST /api/expenses/{id}/reject`: Approver não proprietário transforma
+  `Submitted` em `Rejected`. Corpo: `{ "justification": "Comprovante não corresponde à despesa." }`.
+  O corpo aceita no máximo 500 caracteres; após remover espaços nas extremidades,
+  a justificativa deve ter entre 10 e 500 caracteres. O texto é gravado sem esses espaços.
+- Ambas retornam `200` com o reembolso atualizado. Atores vêm do usuário autenticado;
+  horários vêm de `TimeProvider` no servidor, sempre em UTC. Campos extras enviados
+  pelo cliente não definem ator, horário, proprietário ou estado.
+- Sem Approver retorna `403`; decidir sobre despesa própria retorna `403`, mesmo
+  com outras roles; ID inexistente retorna `404`. Decidir novamente ou sobre
+  qualquer estado diferente de `Submitted` retorna `409`, sem histórico duplicado.
+  Justificativa ausente, vazia, curta ou longa retorna `400`.
+
+```shell
+curl -X POST http://localhost:5245/api/expenses/<id>/approve -H "Authorization: Bearer <token-approver>"
+curl -X POST http://localhost:5245/api/expenses/<id>/reject -H "Authorization: Bearer <token-approver>" -H "Content-Type: application/json" -d '{ "justification": "Comprovante não corresponde à despesa." }'
+```
+
+Use IDs diferentes para demonstrar aprovação e reprovação: `Rejected` é final,
+e um reembolso aprovado não pode receber outra decisão. Approver sozinho deixa
+de consultar o detalhe após decidir, pois sua leitura abrange somente `Submitted`;
+Employee proprietário e Auditor continuam a consultar conforme a matriz. Finance
+passa a consultar os aprovados. O histórico de cada decisão guarda ator, UTC,
+estados anterior/posterior e, na reprovação, justificativa. Alteração e histórico
+são gravados juntos, inclusive com proteção contra decisões simultâneas.
 
 Os testes MSTest exercitam as regras em memória, sem banco, rede ou serviços externos:
 
