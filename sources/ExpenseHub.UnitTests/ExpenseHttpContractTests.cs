@@ -201,6 +201,11 @@ public sealed class ExpenseHttpContractTests
             return role == Roles.Approver;
         }
 
+        if (path.EndsWith("/pay", StringComparison.Ordinal))
+        {
+            return role == Roles.Finance;
+        }
+
         return role == Roles.Employee;
     }
 
