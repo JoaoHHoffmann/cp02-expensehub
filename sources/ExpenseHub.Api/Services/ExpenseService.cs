@@ -76,6 +76,24 @@ internal sealed class ExpenseService
         return ExpenseResponse.FromEntity(expense);
     }
 
+    public async Task<ExpenseResponse> ApproveAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        Expense expense = await GetForDecisionAsync(id, user, cancellationToken);
+        expense.Approve(user.GetUserId(), _clock.GetUtcNow().UtcDateTime);
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return ExpenseResponse.FromEntity(expense);
+    }
+
+    public async Task<ExpenseResponse> RejectAsync(Guid id, ClaimsPrincipal user, RejectExpenseRequest request, CancellationToken cancellationToken)
+    {
+        Expense expense = await GetForDecisionAsync(id, user, cancellationToken);
+        expense.Reject(user.GetUserId(), request.Justification, _clock.GetUtcNow().UtcDateTime);
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return ExpenseResponse.FromEntity(expense);
+    }
+
     public async Task<List<ExpenseResponse>> ListAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         List<Expense> expenses = await _db.Expenses.AsNoTracking()
@@ -95,6 +113,17 @@ internal sealed class ExpenseService
             ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
 
         return ExpenseResponse.FromEntity(expense);
+    }
+
+    private async Task<Expense> GetForDecisionAsync(Guid id, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        ExpenseAccess.EnsureApprover(user);
+        // Uma repetição deve retornar 409, mesmo após sair do escopo de leitura Submitted.
+        Expense expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
+            ?? throw new DomainException(DomainErrorType.NotFound, "Reembolso não encontrado.");
+
+        ExpenseAccess.EnsureCanDecide(user, expense);
+        return expense;
     }
 
     private async Task EnsureCategoryExistsAsync(int categoryId, CancellationToken cancellationToken)

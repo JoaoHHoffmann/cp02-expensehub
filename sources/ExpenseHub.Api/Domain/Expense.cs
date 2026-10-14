@@ -97,6 +97,30 @@ internal sealed class Expense
         AddHistory(ExpenseAction.Submitted, actorId, nowUtc, ExpenseStatus.Draft, ExpenseStatus.Submitted);
     }
 
+    public void Approve(string actorId, DateTime nowUtc)
+    {
+        EnsureNotOwner(actorId);
+        EnsureStatus(ExpenseStatus.Submitted, "Somente reembolsos enviados podem ser aprovados.");
+
+        Status = ExpenseStatus.Approved;
+        AddHistory(ExpenseAction.Approved, actorId, nowUtc, ExpenseStatus.Submitted, ExpenseStatus.Approved);
+    }
+
+    public void Reject(string actorId, string? justification, DateTime nowUtc)
+    {
+        EnsureNotOwner(actorId);
+        EnsureStatus(ExpenseStatus.Submitted, "Somente reembolsos enviados podem ser reprovados.");
+
+        string reason = justification?.Trim() ?? string.Empty;
+        if (reason.Length < 10 || reason.Length > 500)
+        {
+            throw new DomainException(DomainErrorType.Validation, "A justificativa deve ter entre 10 e 500 caracteres.");
+        }
+
+        Status = ExpenseStatus.Rejected;
+        AddHistory(ExpenseAction.Rejected, actorId, nowUtc, ExpenseStatus.Submitted, ExpenseStatus.Rejected, justification: reason);
+    }
+
     private static void ValidateDetails(string description, decimal amount, DateOnly expenseDate, DateTime nowUtc)
     {
         int length = description.Trim().Length;
@@ -143,6 +167,14 @@ internal sealed class Expense
         if (OwnerId != actorId)
         {
             throw new DomainException(DomainErrorType.Forbidden, "Somente o proprietário pode alterar este reembolso.");
+        }
+    }
+
+    private void EnsureNotOwner(string actorId)
+    {
+        if (OwnerId == actorId)
+        {
+            throw new DomainException(DomainErrorType.Forbidden, "Não é permitido decidir sobre o próprio reembolso.");
         }
     }
 
